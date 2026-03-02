@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Audio
+*.m4a
+*.wav
+*.mp4
+*.wav
+*.aac
+
+# Build folders
+bin/
+obj/
+
+# VS Code
+.vscode/

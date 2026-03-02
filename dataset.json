@@ -1,0 +1,23 @@
+{
+	"members": [
+		{
+			"id": "user1",
+			"name": "Thư",
+			"sample": "dataset/members/thu.wav"
+		},
+		{
+			"id": "user2",
+			"name": "Mỹ",
+			"sample": "dataset/members/my.wav"
+		},
+		{
+			"id": "user3",
+			"name": "Vân",
+			"sample": "dataset/members/Van.wav"
+		}
+	],
+	"test_meeting": {
+		"path": "dataset/meetings/test_audio.wav",
+		"description": "Cuộc họp thực tế trích xuất từ video"
+	}
+}

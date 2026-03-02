@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Minutes AI - Biên bản cuộc họp tự động</title>
+    <meta name="description" content="Hệ thống tự động tạo biên bản cuộc họp bằng AI">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-inner">
+                <div class="logo">
+                    <span class="logo-icon">🎙️</span>
+                    <span class="logo-text">Meeting<span class="accent">AI</span></span>
+                </div>
+                <nav class="nav">
+                    <a href="#upload" class="nav-link">Tải lên</a>
+                    <a href="#speakers" class="nav-link">👥 Thành viên</a>
+                    <a href="#meetings" class="nav-link">Danh sách</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+
+            <!-- Hero -->
+            <section class="hero">
+                <h1 class="hero-title">Biên bản cuộc họp <span class="accent">tự động</span></h1>
+                <p class="hero-subtitle">Tải lên file âm thanh – AI sẽ phân tích, nhận diện người nói và tạo biên bản chuyên nghiệp trong vài phút.</p>
+            </section>
+
+            <!-- Upload Card -->
+            <section id="upload" class="card upload-card">
+                <h2 class="card-title">📤 Tải lên cuộc họp</h2>
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-icon">🎵</div>
+                    <p class="drop-text">Kéo thả file vào đây hoặc <label for="fileInput" class="link-label">chọn file</label></p>
+                    <p class="drop-hint">Hỗ trợ: WAV, MP3, M4A, AAC, OGG, MP4</p>
+                    <input type="file" id="fileInput" accept=".wav,.mp3,.m4a,.aac,.ogg,.flac,.mp4,.webm" hidden>
+                </div>
+
+                <!-- Upload progress -->
+                <div class="upload-info" id="uploadInfo" style="display:none">
+                    <div class="file-preview">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name" id="fileName"></span>
+                    </div>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <p class="progress-label" id="progressLabel">Đang chuẩn bị...</p>
+                    <button class="btn btn-primary" id="uploadBtn" onclick="uploadFile()">
+                        🚀 Bắt đầu xử lý
+                    </button>
+                </div>
+            </section>
+
+            <!-- Speakers Section -->
+            <section id="speakers" class="card">
+                <div class="card-header">
+                    <h2 class="card-title">👥 Thành viên & Giọng nói</h2>
+                    <button class="btn btn-ghost" onclick="enrollDefaults()" id="enrollDefaultsBtn">⚡ Đăng ký Thu/Mỹ/Vân</button>
+                </div>
+                <div id="speakersList" class="meetings-list" style="margin-bottom:20px"></div>
+
+                <!-- Form đăng ký mới -->
+                <div class="enroll-form">
+                    <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)">➕ Đăng ký thành viên mới</h3>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                        <div style="flex:1;min-width:160px">
+                            <label style="font-size:12px;color:var(--text-secondary)">Tên thành viên</label>
+                            <input id="newSpeakerName" type="text" placeholder="VD: Nguyễn Văn A" class="text-input">
+                        </div>
+                        <div style="flex:2;min-width:200px">
+                            <label style="font-size:12px;color:var(--text-secondary)">File ghi âm (~30 giây)</label>
+                            <input id="newSpeakerFile" type="file" accept=".wav,.mp3,.m4a,.aac" class="file-input-small">
+                        </div>
+                        <button class="btn btn-primary" style="width:auto;padding:10px 20px" onclick="enrollNewSpeaker()">Đăng ký</button>
+                    </div>
+                    <p id="enrollMsg" style="font-size:13px;margin-top:10px;color:var(--text-secondary)"></p>
+                </div>
+            </section>
+
+            <!-- Meetings List -->
+            <section id="meetings" class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📋 Danh sách cuộc họp</h2>
+                    <button class="btn btn-ghost" onclick="loadMeetings()">🔄 Làm mới</button>
+                </div>
+                <div id="meetingsList" class="meetings-list">
+                    <p class="empty-state">Đang tải...</p>
+                </div>
+            </section>
+
+            <!-- Meeting Detail Modal -->
+            <div class="modal-overlay" id="modalOverlay" onclick="closeModal()" style="display:none"></div>
+            <div class="modal" id="meetingModal" style="display:none">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="modalTitle">Chi tiết cuộc họp</h2>
+                    <button class="modal-close" onclick="closeModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Status -->
+                    <div class="detail-status" id="detailStatus"></div>
+
+                    <!-- Rename Speakers -->
+                    <div class="detail-section" id="renameSection" style="display:none">
+                        <h3 class="section-title">🎤 Đặt tên người nói</h3>
+                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Hệ thống tự phân tách người nói. Nhập tên thực để thay thế nhãn.</p>
+                        <div id="renameList"></div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="detail-section" id="summarySection" style="display:none">
+                        <h3 class="section-title">📝 Biên bản tóm tắt</h3>
+                        <div class="summary-box" id="summaryContent"></div>
+                    </div>
+
+                    <!-- Transcript -->
+                    <div class="detail-section" id="transcriptSection" style="display:none">
+                        <h3 class="section-title">💬 Transcript chi tiết</h3>
+                        <div class="transcript-list" id="transcriptContent"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+    // ============= State =============
+    let selectedFile = null;
+    let pollingInterval = null;
+
+    // ============= File Selection =============
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) selectFile(file);
+    });
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
+
+    function selectFile(file) {
+        selectedFile = file;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('uploadInfo').style.display = 'block';
+        document.getElementById('uploadBtn').style.display = 'block';
+        document.getElementById('progressLabel').textContent = `Sẵn sàng: ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+        setProgress(0);
+    }
+
+    // ============= Upload =============
+    async function uploadFile() {
+        if (!selectedFile) return;
+
+        const btn = document.getElementById('uploadBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Đang tải lên...';
+
+        const form = new FormData();
+        form.append('file', selectedFile);
+
+        try {
+            setProgress(30);
+            document.getElementById('progressLabel').textContent = 'Đang tải file lên server...';
+
+            const res = await fetch('/api/meetings/upload', { method: 'POST', body: form });
+            if (!res.ok) throw new Error(await res.text());
+
+            const data = await res.json();
+            setProgress(60);
+            document.getElementById('progressLabel').textContent = '✅ Upload xong! AI đang phân tích...';
+
+            btn.textContent = '✔ Đã tải lên';
+            loadMeetings();
+            startPolling(data.meeting_id);
+        } catch (err) {
+            document.getElementById('progressLabel').textContent = `❌ Lỗi: ${err.message}`;
+            btn.disabled = false;
+            btn.textContent = '🚀 Thử lại';
+        }
+    }
+
+    function setProgress(pct) {
+        document.getElementById('progressBar').style.width = pct + '%';
+    }
+
+    // ============= Polling =============
+    function startPolling(meetingId) {
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(async () => {
+            const res = await fetch(`/api/meetings/${meetingId}`);
+            const data = await res.json();
+            if (data.status === 'completed' || data.status.startsWith('error')) {
+                clearInterval(pollingInterval);
+                setProgress(100);
+                document.getElementById('progressLabel').textContent =
+                    data.status === 'completed' ? '🎉 Hoàn thành! Xem kết quả bên dưới.' : `❌ ${data.status}`;
+                loadMeetings();
+            } else {
+                setProgress(80);
+                document.getElementById('progressLabel').textContent = '🤖 AI đang xử lý, vui lòng chờ...';
+            }
+        }, 4000);
+    }
+
+    // ============= Meetings List =============
+    async function loadMeetings() {
+        const res = await fetch('/api/meetings');
+        const meetings = await res.json();
+        const el = document.getElementById('meetingsList');
+
+        if (!meetings.length) {
+            el.innerHTML = '<p class="empty-state">Chưa có cuộc họp nào. Hãy tải lên file đầu tiên!</p>';
+            return;
+        }
+
+        el.innerHTML = meetings.map(m => `
+            <div class="meeting-item" onclick="openMeeting(${m.id})">
+                <div class="meeting-icon">${statusIcon(m.status)}</div>
+                <div class="meeting-info">
+                    <div class="meeting-title">${escHtml(m.title)}</div>
+                    <div class="meeting-meta">${formatDuration(m.duration)} · ${formatDate(m.created_at)}</div>
+                </div>
+                <div class="meeting-badge ${statusClass(m.status)}">${statusLabel(m.status)}</div>
+                <button class="btn-delete" onclick="event.stopPropagation(); deleteMeeting(${m.id})" title="Xóa">🗑️</button>
+            </div>
+        `).join('');
+    }
+
+    // ============= Meeting Detail =============
+    async function openMeeting(id) {
+        document.getElementById('modalOverlay').style.display = 'block';
+        document.getElementById('meetingModal').style.display = 'flex';
+        document.getElementById('summarySection').style.display = 'none';
+        document.getElementById('transcriptSection').style.display = 'none';
+        document.getElementById('detailStatus').innerHTML = '<p>Đang tải...</p>';
+
+        const res = await fetch(`/api/meetings/${id}`);
+        const data = await res.json();
+
+        document.getElementById('modalTitle').textContent = data.title;
+        document.getElementById('detailStatus').innerHTML =
+            `<span class="badge ${statusClass(data.status)}">${statusLabel(data.status)}</span>
+             <span class="meta">${formatDuration(data.duration)} · ${formatDate(data.created_at)}</span>`;
+
+        if (data.summary) {
+            document.getElementById('summarySection').style.display = 'block';
+            document.getElementById('summaryContent').innerHTML = markdownToHtml(data.summary);
+        }
+
+        if (data.transcripts && data.transcripts.length) {
+            document.getElementById('transcriptSection').style.display = 'block';
+            document.getElementById('transcriptContent').innerHTML = data.transcripts.map(t => `
+                <div class="transcript-item">
+                    <div class="transcript-meta">
+                        <span class="speaker-tag">${escHtml(t.speaker)}</span>
+                        <span class="timestamp">${t.start}s – ${t.end}s</span>
+                    </div>
+                    <p class="transcript-text">${escHtml(t.text)}</p>
+                </div>
+            `).join('');
+
+            // Show rename panel with unique speakers
+            const uniqueSpeakers = [...new Set(data.transcripts.map(t => t.speaker))].sort();
+            document.getElementById('renameSection').style.display = 'block';
+            document.getElementById('renameList').innerHTML = uniqueSpeakers.map(sp => `
+                <div class="rename-row" id="rename-row-${escHtml(sp)}">
+                    <div class="rename-label">
+                        <span class="speaker-tag">${escHtml(sp)}</span>
+                        <span style="color:var(--text-secondary);font-size:12px;margin-left:6px">
+                            (${data.transcripts.filter(t => t.speaker === sp).length} đoạn)
+                        </span>
+                    </div>
+                    <div class="rename-input-row">
+                        <input type="text" class="text-input rename-input"
+                               id="rename-input-${escHtml(sp)}"
+                               placeholder="Nhập tên thật (VD: Thư, Mỹ, Vân...)"
+                               value="${sp.startsWith('SPEAKER_') ? '' : escHtml(sp)}"
+                               onkeydown="if(event.key==='Enter') renameSpeaker(${data.id}, '${escHtml(sp).replace(/'/g,"\\'")}', this.value)">
+                        <button class="btn btn-primary rename-btn"
+                                onclick="renameSpeaker(${data.id}, '${escHtml(sp).replace(/'/g,"\\'")}', document.getElementById('rename-input-${escHtml(sp)}').value)">
+                            💾 Lưu
+                        </button>
+                    </div>
+                    <span class="rename-msg" id="rename-msg-${escHtml(sp)}"></span>
+                </div>
+            `).join('');
+        }
+    }
+
+    async function renameSpeaker(meetingId, oldName, newName) {
+        newName = newName.trim();
+        const msgEl = document.getElementById(`rename-msg-${CSS.escape(oldName)}`);
+        if (!newName) { if(msgEl) msgEl.textContent = '❌ Nhập tên trước'; return; }
+        if (newName === oldName) { if(msgEl) msgEl.textContent = '⚠️ Tên giống cũ'; return; }
+
+        if(msgEl) msgEl.textContent = '⏳ Đang lưu...';
+        const res = await fetch(`/api/meetings/${meetingId}/rename-speaker`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_name: oldName, new_name: newName })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            if(msgEl) msgEl.textContent = `✅ Đã đổi thành "${newName}"`;
+            // Update speaker tags in transcript
+            document.querySelectorAll('.speaker-tag').forEach(el => {
+                if (el.textContent === oldName) el.textContent = newName;
+            });
+            // Update rename row label
+            const row = document.getElementById(`rename-row-${oldName}`);
+            if (row) row.querySelector('.speaker-tag').textContent = newName;
+        } else {
+            if(msgEl) msgEl.textContent = `❌ ${data.detail || 'Lỗi'}`;
+        }
+    }
+
+
+    async function deleteMeeting(id) {
+        if (!confirm('Xóa cuộc họp này?')) return;
+        await fetch(`/api/meetings/${id}`, { method: 'DELETE' });
+        loadMeetings();
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').style.display = 'none';
+        document.getElementById('meetingModal').style.display = 'none';
+    }
+
+    // ============= Helpers =============
+    function statusIcon(s) {
+        const m = { pending:'⏳', processing:'🔄', completed:'✅', error:'❌' };
+        return Object.entries(m).find(([k]) => s.startsWith(k))?.[1] ?? '❓';
+    }
+    function statusLabel(s) {
+        if (s === 'pending') return 'Chờ xử lý';
+        if (s === 'processing') return 'Đang xử lý';
+        if (s === 'completed') return 'Hoàn thành';
+        if (s.startsWith('error')) return 'Lỗi';
+        return s;
+    }
+    function statusClass(s) {
+        if (s === 'completed') return 'badge-success';
+        if (s.startsWith('error')) return 'badge-error';
+        if (s === 'processing') return 'badge-processing';
+        return 'badge-pending';
+    }
+    function formatDuration(sec) {
+        if (!sec) return '–';
+        const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+        return `${m}m${s.toString().padStart(2,'0')}s`;
+    }
+    function formatDate(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('vi-VN', { dateStyle:'short', timeStyle:'short' });
+    }
+    function escHtml(s) {
+        return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function markdownToHtml(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^#{1,3}\s+(.*)$/gm, '<h4>$1</h4>')
+            .replace(/^[-•]\s+(.*)$/gm, '<li>$1</li>')
+            .replace(/\n{2,}/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // Init
+    loadMeetings();
+    loadSpeakers();
+    setInterval(loadMeetings, 10000);
+
+    // ============= Speakers =============
+    async function loadSpeakers() {
+        const res = await fetch('/api/speakers');
+        const speakers = await res.json();
+        const el = document.getElementById('speakersList');
+        if (!speakers.length) {
+            el.innerHTML = '<p class="empty-state">Chưa có thành viên nào. Nhấn ⚡ để đăng ký Thu/Mỹ/Vân hoặc đăng ký thủ công.</p>';
+            return;
+        }
+        el.innerHTML = speakers.map(s => `
+            <div class="meeting-item">
+                <div class="meeting-icon">🎤</div>
+                <div class="meeting-info">
+                    <div class="meeting-title">${escHtml(s.name)}</div>
+                    <div class="meeting-meta">Đã đăng ký giọng nói</div>
+                </div>
+                <div class="meeting-badge badge-success">Đã đăng ký</div>
+                <button class="btn-delete" onclick="deleteSpeaker('${escHtml(s.name)}')" title="Xóa">🗑️</button>
+            </div>
+        `).join('');
+    }
+
+    async function enrollDefaults() {
+        const btn = document.getElementById('enrollDefaultsBtn');
+        btn.disabled = true; btn.textContent = '⏳ Đang đăng ký...';
+        const res = await fetch('/api/speakers/enroll-defaults', { method: 'POST' });
+        const data = await res.json();
+        btn.disabled = false; btn.textContent = '⚡ Đăng ký Thu/Mỹ/Vân';
+        alert(data.message);
+        loadSpeakers();
+    }
+
+    async function enrollNewSpeaker() {
+        const name = document.getElementById('newSpeakerName').value.trim();
+        const fileInput2 = document.getElementById('newSpeakerFile');
+        if (!name) { document.getElementById('enrollMsg').textContent = '❌ Nhập tên thành viên'; return; }
+        if (!fileInput2.files[0]) { document.getElementById('enrollMsg').textContent = '❌ Chọn file ghi âm'; return; }
+
+        document.getElementById('enrollMsg').textContent = '⏳ Đang xử lý...';
+        const form = new FormData();
+        form.append('name', name);
+        form.append('file', fileInput2.files[0]);
+        const res = await fetch('/api/speakers/enroll', { method: 'POST', body: form });
+        const data = await res.json();
+        document.getElementById('enrollMsg').textContent = res.ok ? `✅ ${data.message}` : `❌ ${data.detail}`;
+        if (res.ok) { loadSpeakers(); document.getElementById('newSpeakerName').value = ''; fileInput2.value = ''; }
+    }
+
+    async function deleteSpeaker(name) {
+        if (!confirm(`Xóa "${name}" khỏi danh sách?`)) return;
+        await fetch(`/api/speakers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        loadSpeakers();
+    }
+    </script>
+</body>
+</html>
