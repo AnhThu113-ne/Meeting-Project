@@ -7,6 +7,8 @@ import json
 import subprocess
 import asyncio
 import google.generativeai as genai
+import requests
+import base64
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -258,3 +260,23 @@ async def process_meeting(meeting_id: int, audio_path: str, db_session_factory):
             except Exception:
                 pass
         db.close()
+
+def generate_tts_viettel(text: str) -> bytes:
+    """Gọi Viettel TTS để tạo file âm thanh lời chào"""
+    API_KEY = os.getenv("VIETTEL_API_KEY", "") # Nhớ thêm vào .env
+    url = "https://viettelgroup.ai/voice/api/tts/v1/rest/syn"
+    headers = {"token": API_KEY, "Content-Type": "application/json"}
+    data = {
+        "text": text,
+        "voice": "hn-female",
+        "speed": 1.0,
+        "tts_return_option": "2" # Trả về base64
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            audio_base64 = response.json().get("audio_content")
+            return base64.b64decode(audio_base64)
+    except Exception as e:
+        print(f"TTS Error: {e}")
+    return b""

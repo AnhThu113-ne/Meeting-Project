@@ -35,6 +35,17 @@
                 <p class="hero-subtitle">Tải lên file âm thanh – AI sẽ phân tích, nhận diện người nói và tạo biên bản chuyên nghiệp trong vài phút.</p>
             </section>
 
+            <section id="live" class="card live-card">
+                <h2 class="card-title" style="justify-content: center;">🎙️ Gọi AI Trợ lý bắt đầu cuộc họp</h2>
+                <p style="font-size:14px; color:var(--text-secondary)">Bấm vào Micro, nói "Chào" để AI nhận diện bạn, sau đó nói "Bắt đầu cuộc họp".</p>
+                
+                <button id="micBtn" class="mic-btn" onclick="toggleLiveMeeting()">
+                    🎤
+                </button>
+                
+                <div id="liveStatus" class="live-status">Sẵn sàng</div>
+            </section>
+
             <!-- Upload Card -->
             <section id="upload" class="card upload-card">
                 <h2 class="card-title">📤 Tải lên cuộc họp</h2>
@@ -118,7 +129,12 @@
 
                     <!-- Summary -->
                     <div class="detail-section" id="summarySection" style="display:none">
-                        <h3 class="section-title">📝 Biên bản tóm tắt</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 class="section-title" style="margin-bottom: 0;">📝 Biên bản tóm tắt</h3>
+                            <button class="btn btn-ghost" id="retrySummaryBtn" style="padding: 6px 12px; font-size: 13px;">
+                                🔄 Thử tóm tắt lại
+                            </button>
+                        </div>
                         <div class="summary-box" id="summaryContent"></div>
                     </div>
 
@@ -134,6 +150,155 @@
     </main>
 
     <script>
+    // ============= Live Meeting (Trợ lý AI thu âm trực tiếp) =============
+    // ============= Live Meeting (Trợ lý AI thu âm trực tiếp) =============
+    let liveWs = null;
+    let liveMediaRecorder = null;
+    let liveStream = null;
+    let isLiveActive = false;
+    let isRecordingPhase = false;
+
+    async function toggleLiveMeeting() {
+        console.log("Đã bấm nút Micro! Trạng thái đang chạy:", isLiveActive);
+        if (isLiveActive) {
+            stopLiveMeeting();
+        } else {
+            await startLiveMeeting();
+        }
+    }
+
+    async function startLiveMeeting() {
+        const statusEl = document.getElementById('liveStatus');
+        const micBtn = document.getElementById('micBtn');
+
+        // Xin quyền Microphone
+        try {
+            console.log("Đang xin quyền Micro...");
+            liveStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log("Đã cấp quyền Micro!");
+        } catch (err) {
+            console.error("Lỗi Micro:", err);
+            statusEl.innerHTML = `<span style="color:var(--error)">❌ Lỗi Micro: ${err.message}. Hãy nhớ truy cập bằng http://localhost:8000 nhé!</span>`;
+            return;
+        }
+
+        statusEl.textContent = '⏳ Đang kết nối với AI...';
+        
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/api/live/stream`;
+        console.log("Đang kết nối WebSocket tới:", wsUrl);
+        
+        liveWs = new WebSocket(wsUrl);
+        liveWs.binaryType = 'arraybuffer'; 
+
+        liveWs.onopen = () => {
+            console.log("Đã mở kết nối WebSocket");
+            isLiveActive = true;
+            isRecordingPhase = false;
+            micBtn.classList.add('listening');
+            statusEl.innerHTML = '🎧 Đang nghe... Hãy nói <b>"Chào"</b>';
+            
+            function recordDetectionChunk() {
+                if (!isLiveActive || isRecordingPhase) return;
+                
+                liveMediaRecorder = new MediaRecorder(liveStream);
+                let chunks = [];
+                liveMediaRecorder.ondataavailable = e => chunks.push(e.data);
+                liveMediaRecorder.onstop = () => {
+                    if (chunks.length > 0 && liveWs.readyState === WebSocket.OPEN) {
+                        const blob = new Blob(chunks, { type: 'audio/webm' });
+                        blob.arrayBuffer().then(buffer => liveWs.send(buffer));
+                    }
+                    if (isLiveActive && !isRecordingPhase) {
+                        recordDetectionChunk();
+                    }
+                };
+                
+                liveMediaRecorder.start();
+                setTimeout(() => {
+                    if (liveMediaRecorder && liveMediaRecorder.state === 'recording') {
+                        liveMediaRecorder.stop();
+                    }
+                }, 3000);
+            }
+            recordDetectionChunk();
+        };
+
+        liveWs.onmessage = async (event) => {
+            if (typeof event.data === 'string') {
+                const data = JSON.parse(event.data);
+                console.log("Server gửi thông báo:", data);
+                
+                if (data.status === 'greetings_done') {
+                    statusEl.innerHTML = `🤖 AI: <i>"${data.message}"</i><br><span style="font-size:13px;color:var(--text-secondary)">Hãy nói <b>"Bắt đầu cuộc họp"</b></span>`;
+                } 
+                else if (data.status === 'recording_started') {
+                    isRecordingPhase = true;
+                    micBtn.classList.remove('listening');
+                    micBtn.classList.add('recording');
+                    statusEl.innerHTML = '🔴 Đang ghi âm cuộc họp... <br><span style="font-size:12px;color:var(--text-secondary)">Bấm vào Micro lần nữa để kết thúc.</span>';
+                    
+                    if (liveMediaRecorder && liveMediaRecorder.state === 'recording') {
+                        liveMediaRecorder.stop();
+                    }
+                    
+                    setTimeout(() => {
+                        liveMediaRecorder = new MediaRecorder(liveStream);
+                        liveMediaRecorder.ondataavailable = (event) => {
+                            if (event.data.size > 0 && liveWs.readyState === WebSocket.OPEN) {
+                                liveWs.send(event.data);
+                            }
+                        };
+                        liveMediaRecorder.start(1000); 
+                    }, 500);
+                }
+            } else {
+                console.log("Nhận được file âm thanh trả về từ AI");
+                playAIAudio(event.data);
+            }
+        };
+
+        liveWs.onerror = (err) => {
+            console.error("Lỗi WebSocket:", err);
+            statusEl.innerHTML = '<span style="color:var(--error)">❌ Lỗi kết nối. Mở F12 để xem chi tiết.</span>';
+            stopLiveMeeting();
+        };
+
+        liveWs.onclose = () => {
+            console.log("WebSocket đã đóng");
+            if (isLiveActive) stopLiveMeeting();
+        };
+    }
+
+    function stopLiveMeeting() {
+        console.log("Kết thúc phiên làm việc");
+        isLiveActive = false;
+        const micBtn = document.getElementById('micBtn');
+        const statusEl = document.getElementById('liveStatus');
+        
+        micBtn.classList.remove('listening', 'recording');
+        statusEl.textContent = 'Sẵn sàng';
+
+        if (liveMediaRecorder && liveMediaRecorder.state !== 'inactive') {
+            liveMediaRecorder.stop();
+        }
+        if (liveStream) {
+            liveStream.getTracks().forEach(track => track.stop());
+        }
+        if (liveWs && liveWs.readyState === WebSocket.OPEN) {
+            liveWs.close();
+        }
+        
+        setTimeout(loadMeetings, 2000); 
+    }
+
+    function playAIAudio(arrayBuffer) {
+        const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.play();
+    }
+    
     // ============= State =============
     let selectedFile = null;
     let pollingInterval = null;
@@ -260,6 +425,7 @@
         if (data.summary) {
             document.getElementById('summarySection').style.display = 'block';
             document.getElementById('summaryContent').innerHTML = markdownToHtml(data.summary);
+            document.getElementById('retrySummaryBtn').onclick = () => retrySummary(data.id);
         }
 
         if (data.transcripts && data.transcripts.length) {
@@ -299,6 +465,34 @@
                     <span class="rename-msg" id="rename-msg-${escHtml(sp)}"></span>
                 </div>
             `).join('');
+        }
+    }
+
+    async function retrySummary(meetingId) {
+        const btn = document.getElementById('retrySummaryBtn');
+        const content = document.getElementById('summaryContent');
+        
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Đang gọi AI...';
+        content.innerHTML = '<p style="color: var(--text-secondary)">🤖 AI đang đọc lại nội dung và tóm tắt, vui lòng chờ vài giây...</p>';
+        
+        try {
+            const res = await fetch(`/api/meetings/${meetingId}/retry-summary`, { 
+                method: 'POST' 
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                content.innerHTML = markdownToHtml(data.summary);
+                loadMeetings(); 
+            } else {
+                content.innerHTML = `<p style="color: var(--error)">❌ Lỗi: ${data.detail}</p>`;
+            }
+        } catch (err) {
+            content.innerHTML = `<p style="color: var(--error)">❌ Lỗi kết nối: ${err.message}</p>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🔄 Thử tóm tắt lại';
         }
     }
 

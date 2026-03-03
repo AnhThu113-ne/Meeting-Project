@@ -624,3 +624,63 @@ body {
     margin-top: 6px;
     color: var(--text-secondary);
 }
+
+/* ---- Live Meeting (Trợ lý AI) ---- */
+.live-card {
+    text-align: center;
+    border: 1px solid var(--accent);
+    background: linear-gradient(180deg, rgba(10, 14, 26, 0) 0%, rgba(99, 179, 237, 0.03) 100%);
+}
+
+.mic-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--bg-card-hover);
+    border: 2px solid var(--border);
+    font-size: 32px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+    color: white;
+    outline: none;
+}
+
+.mic-btn:hover {
+    transform: scale(1.05);
+    background: var(--border);
+}
+
+.mic-btn.listening {
+    animation: pulse-ring-blue 2s infinite;
+    border-color: var(--accent);
+    background: rgba(99, 179, 237, 0.15);
+}
+
+.mic-btn.recording {
+    animation: pulse-ring-red 2s infinite;
+    border-color: var(--error);
+    background: rgba(252, 129, 129, 0.15);
+}
+
+@keyframes pulse-ring-blue {
+    0% { box-shadow: 0 0 0 0 rgba(99, 179, 237, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(99, 179, 237, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 179, 237, 0); }
+}
+
+@keyframes pulse-ring-red {
+    0% { box-shadow: 0 0 0 0 rgba(252, 129, 129, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(252, 129, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(252, 129, 129, 0); }
+}
+
+.live-status {
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 500;
+    min-height: 40px;
+}

@@ -174,3 +174,64 @@ def get_meeting_speakers(meeting_id: int, db: Session = Depends(get_db)):
     ).distinct().all()
     speakers = sorted(set(t.speaker for t in transcripts if t.speaker))
     return {"speakers": speakers}
+
+import google.generativeai as genai
+
+@router.post("/{meeting_id}/retry-summary")
+def retry_summary(meeting_id: int, db: Session = Depends(get_db)):
+    """
+    API gọi lại AI Gemini để tóm tắt lại dựa trên transcript đã có trong DB
+    mà không cần phải xử lý lại file audio.
+    """
+    # 1. Lấy thông tin meeting
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(404, "Không tìm thấy cuộc họp")
+
+    # 2. Lấy toàn bộ transcript của cuộc họp này
+    transcripts = db.query(Transcript).filter(
+        Transcript.meeting_id == meeting_id
+    ).order_by(Transcript.start_time).all()
+    
+    if not transcripts:
+        raise HTTPException(400, "Cuộc họp này chưa có dữ liệu bóc băng (Transcript) để tóm tắt.")
+
+    # 3. Gộp text lại
+    full_text = ""
+    for t in transcripts:
+        full_text += f"{t.speaker}: {t.text}\n"
+
+    # 4. Gọi Gemini API
+    try:
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        prompt = (
+            "Hãy tạo biên bản cuộc họp chuyên nghiệp từ nội dung sau. "
+            "Bao gồm: tóm tắt, kết luận và công việc cần làm (nếu có).\n\n"
+            + full_text[:6000] 
+        )
+        resp = model.generate_content(prompt)
+        summary_text = resp.text
+    except Exception as e:
+        error_str = str(e)
+        if "429" in error_str or "Quota exceeded" in error_str:
+            raise HTTPException(500, "AI đang bị quá tải do vượt giới hạn bản miễn phí. Vui lòng đợi khoảng 1 phút rồi nhấn thử lại nhé!")
+        else:
+            raise HTTPException(500, f"Lỗi AI: {error_str}")
+
+    # 5. Cập nhật vào DB
+    minutes = db.query(MeetingMinutes).filter(MeetingMinutes.meeting_id == meeting_id).first()
+    if not minutes:
+        minutes = MeetingMinutes(meeting_id=meeting_id, summary=summary_text)
+        db.add(minutes)
+    else:
+        minutes.summary = summary_text
+
+    # Nếu trạng thái cũ đang là báo lỗi, chuyển lại thành completed
+    if meeting.status.startswith("error") or "Gemini" in meeting.status:
+        meeting.status = "completed"
+
+    db.commit()
+
+    return {"message": "Tóm tắt thành công!", "summary": summary_text}

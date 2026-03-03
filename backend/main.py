@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from backend.db.database import init_db
 from backend.api.meetings import router as meetings_router
 from backend.api.speakers import router as speakers_router
+from backend.api.live_meeting import router as live_router
 
 app = FastAPI(
     title="Meeting Minutes AI",
@@ -33,6 +34,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 # Include routers
 app.include_router(meetings_router)
 app.include_router(speakers_router)
+app.include_router(live_router) # đăng ký router cho live meeting
 
 # Serve frontend
 @app.get("/", response_class=HTMLResponse)
