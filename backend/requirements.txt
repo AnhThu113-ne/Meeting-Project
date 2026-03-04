@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+faster-whisper
+pyannote.audio
+google-generativeai
+openai
+pydub
+librosa
+torch
+torchaudio
+python-dotenv

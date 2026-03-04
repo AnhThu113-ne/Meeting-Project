@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Meeting Minutes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 320px;
+      min-height: 420px;
+      background: #05060f;
+      background-image:
+        radial-gradient(circle at top left, rgba(124, 58, 237, 0.2) 0%, transparent 50%),
+        radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.15) 0%, transparent 50%);
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+
+    .header-title { font-family: 'Outfit', sans-serif; font-size: 1.1rem; }
+    .header-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+
+    .status-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #4ade80; flex-shrink: 0;
+    }
+    .status-dot.recording { background: #f87171; animation: blink 1s infinite; }
+    .status-dot.processing { background: #facc15; animation: blink 0.7s infinite; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .status-label { font-size: 0.85rem; font-weight: 500; }
+    .status-sub { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+
+    .meeting-id-box {
+      background: rgba(124, 58, 237, 0.1);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      color: #c4b5fd;
+      display: none;
+    }
+    .meeting-id-box.visible { display: block; }
+    .meeting-id-box span { font-weight: 700; color: #a78bfa; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      color: white;
+    }
+    .btn-start:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    .btn-stop {
+      background: rgba(248, 113, 113, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+    .btn-stop:hover { background: rgba(248, 113, 113, 0.25); }
+
+    .btn-open-dashboard {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #94a3b8;
+      font-size: 0.8rem;
+    }
+    .btn-open-dashboard:hover { color: white; border-color: rgba(255,255,255,0.2); }
+
+    .transcript-preview {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 130px;
+      overflow-y: auto;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #cbd5e1;
+    }
+
+    .transcript-preview .line { padding: 3px 0; }
+    .transcript-preview .spk { font-weight: 700; margin-right: 6px; }
+    .spk-a { color: #38bdf8; }
+    .spk-b { color: #facc15; }
+
+    .footer { text-align: center; font-size: 0.68rem; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-icon">🤖</div>
+    <div>
+      <div class="header-title">AI Meeting Minutes</div>
+      <div class="header-sub">Ghi âm · Nhận diện · Biên bản tự động</div>
+    </div>
+  </div>
+
+  <div class="status-card">
+    <div class="status-dot" id="statusDot"></div>
+    <div>
+      <div class="status-label" id="statusLabel">Sẵn sàng</div>
+      <div class="status-sub" id="statusSub">Mở Google Meet để bắt đầu</div>
+    </div>
+  </div>
+
+  <div class="meeting-id-box" id="meetingIdBox">
+    Phòng họp: <span id="meetingIdText">—</span>
+  </div>
+
+  <div class="transcript-preview" id="transcriptPreview">
+    <div class="line" style="color:#475569; font-style:italic;">Bản ghi hội thoại sẽ hiện ở đây...</div>
+  </div>
+
+  <button class="btn btn-start" id="btnStart">🎙️ Bắt đầu ghi âm</button>
+  <button class="btn btn-stop" id="btnStop" style="display:none;">⏹ Dừng & Tạo biên bản</button>
+  <button class="btn btn-open-dashboard" id="btnDashboard">↗ Mở Dashboard biên bản</button>
+
+  <div class="footer">Viettel ASR · Pyannote · Gemini 1.5 · v1.0</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

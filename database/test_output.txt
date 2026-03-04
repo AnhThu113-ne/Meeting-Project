@@ -1,0 +1,77 @@
+﻿=======================================================
+BUOC 1: Dang ky giong noi mau
+=======================================================
+  File giong luu tai   : e:\meeting_project\logs\voice\Nam_test_025518.wav
+  SQL chi luu path     : speakers.voice_path
+  -> Speaker ID        : 3
+  -> SQL speakers.name : Nam (Test)
+  -> SQL voice_path    : e:\meeting_project\logs\voice\Nam_test_025518.wav
+  -> File ton tai?     : True
+
+=======================================================
+BUOC 2: Tao cuoc hop moi
+=======================================================
+  -> Meeting Code      : test-025518
+  -> Meeting ID (SQL)  : 3
+
+=======================================================
+BUOC 3: Luu transcript tung luot noi
+=======================================================
+  [Nam   ] text_file_path (SQL) -> meeting3_20260304_025518_780000.txt
+           File ton tai?               -> True
+  [Thß║ºy  ] text_file_path (SQL) -> meeting3_20260304_025518_780791.txt
+           File ton tai?               -> True
+  [Nam   ] text_file_path (SQL) -> meeting3_20260304_025518_781489.txt
+           File ton tai?               -> True
+  [Thß║ºy  ] text_file_path (SQL) -> meeting3_20260304_025518_782424.txt
+           File ton tai?               -> True
+
+=======================================================
+BUOC 4: Luu bien ban cuoc hop (Gemini output)
+=======================================================
+  File bien ban luu tai: e:\meeting_project\logs\minutes\minutes_meeting3_20260304_025518.md
+  SQL chi luu path     : meeting_minutes.minutes_path
+  File ton tai?        : True
+
+=======================================================
+BUOC 5: XAC NHAN SQL CHI LUU DUONG DAN
+=======================================================
+
+--- speakers ---
+  ID=3 | name=Nam (Test) | voice_path=e:\meeting_project\logs\voice\Nam_test_025518.wav
+
+--- meetings ---
+  ID=3 | code=test-025518 | status=done
+
+--- transcripts (chi hien text_file_path) ---
+  ID=7 | speaker=Nam    | path=...text\meeting3_20260304_025518_780000.txt
+  ID=8 | speaker=Thß║ºy   | path=...text\meeting3_20260304_025518_780791.txt
+  ID=9 | speaker=Nam    | path=...text\meeting3_20260304_025518_781489.txt
+  ID=10 | speaker=Thß║ºy   | path=...text\meeting3_20260304_025518_782424.txt
+
+--- meeting_minutes ---
+  ID=2 | path=...t\logs\minutes\minutes_meeting3_20260304_025518.md
+
+=======================================================
+KIEM TRA THU MUC LOGS TREN DISK
+=======================================================
+
+  logs/voice/  (3 file tong cong)
+    - Nam_test_025457.wav  (25 bytes)
+    - Nam_test_025508.wav  (25 bytes)
+    - Nam_test_025518.wav  (25 bytes)
+
+  logs/text/  (10 file tong cong)
+    - meeting3_20260304_025518_780000.txt  (126 bytes)
+    - meeting3_20260304_025518_780791.txt  (148 bytes)
+    - meeting3_20260304_025518_781489.txt  (175 bytes)
+    - meeting3_20260304_025518_782424.txt  (114 bytes)
+
+  logs/minutes/  (2 file tong cong)
+    - minutes_meeting3_20260304_025518.md  (460 bytes)
+
+=======================================================
+THANH CONG! Toan bo luong luu du lieu dung nhu thiet ke:
+  File thuc      -> logs/voice | logs/text | logs/minutes
+  SQL Server     -> Chi luu DUONG DAN den file
+=======================================================

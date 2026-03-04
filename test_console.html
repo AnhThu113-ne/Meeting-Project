@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 Meeting AI — Test Console</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  .subtitle { text-align: center; color: #64748b; font-size: 13px; margin-bottom: 24px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; margin: 0 auto; }
+
+  .card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+
+  /* State badge */
+  .state-badge {
+    display: flex; align-items: center; gap: 10px;
+    background: #0f172a; border-radius: 12px; padding: 14px 18px;
+    border: 1px solid #1e293b; margin-bottom: 16px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot.standby   { background: #475569; }
+  .dot.recording { background: #ef4444; animation: pulse 1s infinite; }
+  .dot.finalizing{ background: #f59e0b; animation: pulse 0.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .state-text { font-size: 15px; font-weight: 600; }
+  .state-sub  { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+  /* Room input */
+  .room-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  input[type=text] {
+    flex: 1; background: #0f172a; border: 1px solid #1f2937;
+    border-radius: 10px; padding: 10px 14px; color: #e2e8f0;
+    font-size: 14px; outline: none;
+  }
+  input[type=text]:focus { border-color: #6366f1; }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 16px; border-radius: 10px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { transform: translateY(-1px); filter: brightness(1.15); }
+  .btn:active { transform: translateY(0); }
+  .btn-indigo { background: #4f46e5; color: white; }
+  .btn-red    { background: #dc2626; color: white; }
+  .btn-green  { background: #059669; color: white; }
+  .btn-gray   { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .btn-full   { width: 100%; justify-content: center; }
+
+  /* Preset phrases */
+  .phrase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .phrase-btn {
+    background: #0f172a; border: 1px solid #1e293b;
+    border-radius: 10px; padding: 10px 12px;
+    font-size: 12px; color: #94a3b8; cursor: pointer;
+    text-align: left; transition: all 0.15s;
+  }
+  .phrase-btn:hover { border-color: #6366f1; color: #e2e8f0; background: #1e293b; }
+  .phrase-btn.trigger-start { border-color: #059669; color: #34d399; }
+  .phrase-btn.trigger-start:hover { background: #064e3b; }
+  .phrase-btn.trigger-stop  { border-color: #dc2626; color: #f87171; }
+  .phrase-btn.trigger-stop:hover  { background: #450a0a; }
+  .phrase-label { font-size: 10px; display: block; color: #475569; margin-bottom: 2px; font-weight: 600; text-transform: uppercase; }
+
+  /* Custom speak */
+  .speak-row { display: flex; gap: 8px; margin-top: 12px; }
+  .speak-input { flex: 1; }
+  
+  /* Transcript */
+  .transcript {
+    background: #0f172a; border-radius: 10px; padding: 14px;
+    min-height: 180px; max-height: 260px; overflow-y: auto;
+    border: 1px solid #1e293b; font-size: 13px; line-height: 1.6;
+  }
+  .line { padding: 4px 0; border-bottom: 1px solid #1e293b; }
+  .line:last-child { border-bottom: none; }
+  .spk { font-weight: 700; color: #818cf8; margin-right: 6px; }
+  .empty { color: #475569; font-style: italic; }
+
+  /* Minutes */
+  .minutes {
+    background: #0f172a; border-radius: 10px; padding: 16px;
+    min-height: 200px; max-height: 350px; overflow-y: auto;
+    border: 1px solid #1e293b; font-size: 13px; line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .minutes h3 { color: #a78bfa; }
+
+  /* Log */
+  .log {
+    background: #020617; border-radius: 10px; padding: 12px;
+    height: 100px; overflow-y: auto; font-family: monospace; font-size: 11px;
+    color: #64748b; border: 1px solid #1e293b;
+  }
+  .log .ok   { color: #34d399; }
+  .log .warn { color: #f59e0b; }
+  .log .err  { color: #f87171; }
+
+  .full-col { grid-column: 1 / -1; }
+  .mt-auto  { margin-top: auto; }
+</style>
+</head>
+<body>
+
+<h1>🤖 Meeting AI — Test Console</h1>
+<p class="subtitle">Giả lập cuộc họp để test Trigger Word Detection + DB Logging + Gemini Summary</p>
+
+<div class="grid">
+
+  <!-- CỘT TRÁI: Điều khiển -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- State Card -->
+    <div class="card">
+      <h2>Trạng thái phòng</h2>
+      <div class="state-badge">
+        <div class="dot standby" id="stateDot"></div>
+        <div>
+          <div class="state-text" id="stateText">⏳ Standby — Đang chờ lệnh bắt đầu</div>
+          <div class="state-sub" id="stateSub">Nói "bắt đầu cuộc họp" để bắt đầu ghi</div>
+        </div>
+      </div>
+
+      <div class="room-row">
+        <input type="text" id="roomId" placeholder="Mã phòng (VD: hop01)" value="hop-demo-01">
+        <button class="btn btn-gray" onclick="checkState()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- Câu nói mẫu -->
+    <div class="card">
+      <h2>📢 Câu nói mẫu — Click để gửi</h2>
+      
+      <div style="margin-bottom:8px">
+        <span class="phrase-label" style="color:#34d399">🟢 Trigger bắt đầu họp</span>
+        <div class="phrase-grid">
+          <button class="phrase-btn trigger-start" onclick="speak('bắt đầu cuộc họp nhé')">
+            "bắt đầu cuộc họp nhé"
+          </button>
+          <button class="phrase-btn trigger-start" onclick="speak('chúng ta bắt đầu thôi')">
+            "chúng ta bắt đầu thôi"
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <span class="phrase-label">💬 Nội dung cuộc họp</span>
+        <div class="phrase-grid">
+          <button class="phrase-btn" onclick="speak('Em đã hoàn thành module nhận diện giọng nói')">Em báo cáo AI</button>
+          <button class="phrase-btn" onclick="speak('Thầy sẽ review code vào tuần tới')">Thầy góp ý</button>
+          <button class="phrase-btn" onclick="speak('Cần cải thiện độ chính xác của Viettel STT')">Góp ý STT</button>
+          <button class="phrase-btn" onclick="speak('Demo sản phẩm vào ngày 15 tháng 3')">Đặt deadline</button>
+        </div>
+      </div>
+
+      <div>
+        <span class="phrase-label" style="color:#f87171">🔴 Trigger kết thúc họp</span>
+        <div class="phrase-grid">
+          <button class="phrase-btn trigger-stop" onclick="speak('kết thúc cuộc họp nhé')">
+            "kết thúc cuộc họp nhé"
+          </button>
+          <button class="phrase-btn trigger-stop" onclick="speak('dừng ghi lại thôi')">
+            "dừng ghi lại thôi"
+          </button>
+        </div>
+      </div>
+
+      <!-- Custom speak -->
+      <div class="speak-row">
+        <input type="text" class="speak-input" id="customText" placeholder="Hoặc gõ câu nói tùy ý..." 
+               onkeydown="if(event.key==='Enter') sendCustom()">
+        <button class="btn btn-indigo" onclick="sendCustom()">Gửi ▶</button>
+      </div>
+    </div>
+
+    <!-- Log Console -->
+    <div class="card">
+      <h2>📋 Log</h2>
+      <div class="log" id="logBox">
+        <span class="ok">Sẵn sàng test. Click 1 câu nói bên trên để bắt đầu.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CỘT PHẢI: Transcript + Biên bản -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div class="card" style="flex:1">
+      <h2>💬 Live Transcript</h2>
+      <div class="transcript" id="transcriptBox">
+        <span class="empty">Transcript sẽ hiển thị ở đây khi cuộc họp bắt đầu...</span>
+      </div>
+    </div>
+
+    <div class="card" style="flex:2">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        📄 Biên bản cuộc họp (Gemini)
+        <button class="btn btn-gray" onclick="fetchResult()" style="font-size:11px;padding:6px 10px">🔄 Tải biên bản</button>
+      </h2>
+      <div class="minutes" id="minutesBox">
+        <span style="color:#475569;font-style:italic">Biên bản sẽ xuất hiện sau khi nói "kết thúc cuộc họp"...</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let transcriptLines = [];
+let pollTimer = null;
+
+const stateConfig = {
+  standby:    { dotClass: 'standby',   text: '⏳ Standby — Đang chờ lệnh bắt đầu',       sub: 'Nói "bắt đầu cuộc họp" để bắt đầu ghi' },
+  recording:  { dotClass: 'recording', text: '🔴 Recording — Đang ghi biên bản',          sub: 'Đang ghi lại nội dung... Nói "kết thúc cuộc họp" để dừng' },
+  finalizing: { dotClass: 'finalizing',text: '⚡ Finalizing — Gemini đang tóm tắt...',    sub: 'Đang tạo biên bản, vui lòng đợi...' },
+  not_found:  { dotClass: 'standby',   text: '❔ Chưa có phiên nào',                      sub: 'Nhập mã phòng và gửi câu nói đầu tiên' },
+};
+
+function getRoomId() {
+  return document.getElementById('roomId').value.trim() || 'hop-demo-01';
+}
+
+function log(msg, type = '') {
+  const box = document.getElementById('logBox');
+  const span = document.createElement('span');
+  span.className = type;
+  span.textContent = `[${new Date().toLocaleTimeString('vi')}] ${msg}\n`;
+  box.appendChild(span);
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateStateUI(state) {
+  const cfg = stateConfig[state] || stateConfig.standby;
+  document.getElementById('stateDot').className = `dot ${cfg.dotClass}`;
+  document.getElementById('stateText').textContent = cfg.text;
+  document.getElementById('stateSub').textContent  = cfg.sub;
+}
+
+async function speak(text) {
+  const roomId = getRoomId();
+  log(`Gửi: "${text}"`, '');
+  try {
+    const form = new FormData();
+    form.append('room_id', roomId);
+    form.append('text', text);
+    const res  = await fetch(`${API}/test-speak`, { method: 'POST', body: form });
+    const data = await res.json();
+
+    if (data.event === 'MEETING_STARTED') {
+      log(`✅ CUOC HOP BAT DAU! DB ID=${data.db_id}`, 'ok');
+      transcriptLines = [];
+      updateStateUI('recording');
+      startPolling();
+    } else if (data.event === 'LINE_SAVED') {
+      log(`📝 Luu: "${text.slice(0,40)}"`, 'ok');
+      transcriptLines.push({ speaker: 'Speaker', text });
+      renderTranscript();
+    } else if (data.event === 'MEETING_ENDED') {
+      log('⚡ KET THUC! Gemini dang tao bien ban...', 'warn');
+      updateStateUI('finalizing');
+      stopPolling();
+      setTimeout(fetchResult, 4000);
+    } else {
+      log(`Standby — "${text.slice(0,30)}"`, '');
+    }
+  } catch(e) {
+    log('❌ Lỗi kết nối backend: ' + e.message, 'err');
+  }
+}
+
+function sendCustom() {
+  const t = document.getElementById('customText').value.trim();
+  if (!t) return;
+  speak(t);
+  document.getElementById('customText').value = '';
+}
+
+async function checkState() {
+  const roomId = getRoomId();
+  try {
+    const res  = await fetch(`${API}/room-state/${roomId}`);
+    const data = await res.json();
+    updateStateUI(data.state || 'not_found');
+    log(`Room state: ${data.state || 'not_found'}`, '');
+  } catch(e) {
+    log('❌ Không kết nối được backend', 'err');
+  }
+}
+
+async function fetchResult() {
+  const roomId = getRoomId();
+  log('Đang tải biên bản từ Gemini...', '');
+  try {
+    const res  = await fetch(`${API}/result/${roomId}`);
+    const data = await res.json();
+    if (data.minutes) {
+      document.getElementById('minutesBox').textContent = data.minutes;
+      log('✅ Biên bản đã sẵn sàng!', 'ok');
+      updateStateUI('standby');
+    } else {
+      log('Biên bản chưa sẵn sàng, thử lại sau 3s...', 'warn');
+      setTimeout(fetchResult, 3000);
+    }
+  } catch(e) {
+    log('❌ Lỗi tải biên bản: ' + e.message, 'err');
+  }
+}
+
+function renderTranscript() {
+  const box = document.getElementById('transcriptBox');
+  if (!transcriptLines.length) {
+    box.innerHTML = '<span class="empty">Chưa có nội dung...</span>';
+    return;
+  }
+  box.innerHTML = transcriptLines.map((l, i) => {
+    const colors = ['#818cf8','#34d399','#f59e0b','#f87171','#a78bfa'];
+    const c = colors[i % colors.length];
+    return `<div class="line"><span class="spk" style="color:${c}">${l.speaker}:</span>${l.text}</div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function startPolling() {
+  pollTimer = setInterval(checkState, 5000);
+}
+function stopPolling() {
+  clearInterval(pollTimer);
+}
+
+// Khởi tạo
+checkState();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+	"manifest_version": 3,
+	"name": "AI Meeting Minutes",
+	"version": "1.0.0",
+	"description": "Tự động nhận diện giọng nói và tạo biên bản cuộc họp Google Meet bằng AI",
+	"permissions": [
+		"activeTab",
+		"scripting",
+		"tabCapture",
+		"storage",
+		"tabs"
+	],
+	"host_permissions": [
+		"https://meet.google.com/*",
+		"http://localhost:8000/*"
+	],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"content_scripts": [
+		{
+			"matches": [
+				"https://meet.google.com/*"
+			],
+			"js": [
+				"content.js"
+			],
+			"run_at": "document_idle"
+		}
+	],
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "AI Meeting Minutes"
+	}
+}
