@@ -8,22 +8,50 @@ Test toàn bộ luồng lưu dữ liệu:
   5. Truy vấn SQL để xác nhận chỉ có ĐƯỜNG DẪN trong DB
 """
 import sys
-sys.path.insert(0, r"e:\meeting_project\backend")
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(BASE_DIR, "backend"))
 
-import pyodbc, os, shutil
+import pyodbc, shutil
 from datetime import datetime
 
 DRIVER  = "ODBC Driver 17 for SQL Server"
-SERVER  = "localhost"
 DB      = "MeetingMinutesDB"
 
-VOICE_DIR   = r"e:\meeting_project\logs\voice"
-TEXT_DIR    = r"e:\meeting_project\logs\text"
-MINUTES_DIR = r"e:\meeting_project\logs\minutes"
+VOICE_DIR   = os.path.join(BASE_DIR, "logs", "voice")
+TEXT_DIR    = os.path.join(BASE_DIR, "logs", "text")
+MINUTES_DIR = os.path.join(BASE_DIR, "logs", "minutes")
 
-conn = pyodbc.connect(
-    f"DRIVER={{{DRIVER}}};SERVER={SERVER};DATABASE={DB};Trusted_Connection=yes;"
-)
+servers_to_try = [
+    r"localhost\ATHU2019",
+    r"localhost\SQLEXPRESS",
+    r"localhost",
+    r"localhost\THU2019",
+    r"localhost\SQLEXPRESS01"
+]
+
+selected_server = None
+conn = None
+last_error = None
+
+for server in servers_to_try:
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={{{DRIVER}}};SERVER={server};DATABASE={DB};Trusted_Connection=yes;",
+            timeout=3
+        )
+        selected_server = server
+        print(f"[OK] Ket noi thanh cong toi Server: {server}")
+        break
+    except Exception as e:
+        last_error = e
+        continue
+
+if not selected_server:
+    print(f"[LOI] Khong the ket noi den bat ky database SQL Server nao: {servers_to_try}")
+    if last_error:
+        raise last_error
+
 conn.autocommit = True
 cur  = conn.cursor()
 

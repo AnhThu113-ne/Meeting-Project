@@ -208,30 +208,78 @@ async def api_upload_voice(meeting_id: int = Form(...), file: UploadFile = File(
 @app.post("/upload-audio")
 async def api_upload_audio(file: UploadFile = File(...)):
     """API dùng cho Frontend Dashboard để phân tích file offline (Diarization + Voice Biometrics)."""
-    temp_path = os.path.join("uploads", f"offline_{uuid.uuid4().hex[:6]}_{file.filename}")
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
-
-    print(f"\n[AI] Bắt đầu xử lý Biometrics cho file: {file.filename}")
-    # Lấy các mẫu giọng đăng ký từ SQL Server
-    speaker_refs = db.get_speaker_voice_paths()
+    file_id = str(uuid.uuid4())
+    file_ext = os.path.splitext(file.filename)[1] or ".wav"
+    file_path = os.path.join("uploads", f"{file_id}{file_ext}")
     
-    # Process Phân mảnh + Nhận diện giọng nói + Bóc băng
-    transcript = audio_processor.process_audio(temp_path, references=speaker_refs)
-    
-    # Tạo biên bản từ text
-    minutes_content = "Không tạo được do chưa nhận diện được text."
-    if transcript:
-        try:
-            minutes_content = llm_proc.generate_minutes(transcript)
-        except Exception as e:
-            minutes_content = f"Lỗi tạo biên bản: {str(e)}"
+    with open(file_path, "wb") as buffer:
+        buffer.write(await file.read())
 
-    return {
-        "status": "ok",
-        "transcript": transcript,
-        "minutes": minutes_content
-    }
+    # 1. Tạo bản ghi cuộc họp trong SQL Server
+    meeting_id = db.create_meeting(meeting_code=file_id)
+
+    # 2. Xử lý âm thanh đồng bộ
+    try:
+        references = db.get_speaker_voice_paths()
+        print(f"Bat dau xu ly am thanh dong bo (Test): {file_path}")
+        transcript = audio_processor.process_audio(file_path, references=references if references else None)
+
+        # Lưu từng dòng transcript vào SQL Server
+        for turn in transcript:
+            db.save_transcript_line(
+                meeting_id  = meeting_id,
+                text        = turn["text"],
+                speaker_name= turn.get("speaker"),
+                start_sec   = turn.get("start"),
+                end_sec     = turn.get("end")
+            )
+
+        # Tạo biên bản
+        print("Bat dau tom tat bang LLM...")
+        minutes_markdown = llm_proc.generate_minutes(transcript)
+
+        # Lưu biên bản
+        minutes_path = db.save_meeting_minutes(meeting_id, minutes_markdown)
+
+        # Save transcript file
+        transcript_filename = f"transcript_meeting{meeting_id}_{file_id}.txt"
+        transcript_file_path = os.path.join(db.TEXT_DIR, transcript_filename)
+        with open(transcript_file_path, "w", encoding="utf-8") as tf:
+            for turn in transcript:
+                tf.write(f"{turn.get('speaker', 'Unknown')}: {turn['text']}\n")
+
+        # Move/copy audio file to db.VOICE_DIR and update paths
+        voice_filename = f"meeting_{meeting_id}_audio_record{file_ext}"
+        voice_file_path = os.path.join(db.VOICE_DIR, voice_filename)
+        shutil.copy(file_path, voice_file_path)
+
+        db.update_meeting_paths(meeting_id, audio_path=voice_file_path, transcript_path=transcript_file_path)
+
+        from datetime import datetime
+        meeting_title = f"Cuộc họp trực tiếp {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        db.end_meeting(meeting_id, title=meeting_title)
+
+        # Lưu JSON kết quả
+        result_data = {"file_id": file_id, "transcript": transcript, "minutes": minutes_markdown}
+        with open(os.path.join(RESULT_DIR, f"{file_id}.json"), "w", encoding="utf-8") as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=4)
+
+        return {
+            "status": "ok",
+            "file_id": file_id,
+            "meeting_id": meeting_id,
+            "transcript": transcript,
+            "minutes": minutes_markdown
+        }
+
+    except Exception as e:
+        print(f"Loi khi xu ly offline: {str(e)}")
+        db.end_meeting(meeting_id, title=f"Loi: {str(e)[:200]}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": f"Lỗi khi xử lý âm thanh: {str(e)}"
+        }
 
 # ================================================================
 # TEST & UTILS

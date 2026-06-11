@@ -5,35 +5,71 @@ Dùng pyodbc để kết nối SQL Server.
 """
 import pyodbc
 import os
+import sys
 from datetime import datetime
+
+# Reconfigure console stream to UTF-8 to prevent encoding crashes on Windows
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 
 # ==============================================================
 # CẤU HÌNH KẾT NỐI SQL SERVER
 # Chỉnh SERVER và DATABASE theo máy của bạn
 # ==============================================================
-SQL_SERVER   = os.getenv("SQL_SERVER", "localhost")      # Hoặc DESKTOP-XXX\SQLEXPRESS
-SQL_DATABASE = os.getenv("SQL_DATABASE", "MeetingMinutesDB")
-
-# Dùng Windows Authentication (không cần username/password)
-CONNECTION_STRING = (
-    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-    f"SERVER={SQL_SERVER};"
-    f"DATABASE={SQL_DATABASE};"
-    f"Trusted_Connection=yes;"
-)
-
-# Thư mục lưu file trên disk
-VOICE_DIR   = r"e:\meeting_project\logs\voice"
-TEXT_DIR    = r"e:\meeting_project\logs\text"
-MINUTES_DIR = r"e:\meeting_project\logs\minutes"
+# Cấu hình đường dẫn thư mục lưu file tương đối so với thư mục gốc dự án
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VOICE_DIR   = os.path.join(BASE_DIR, "logs", "voice")
+TEXT_DIR    = os.path.join(BASE_DIR, "logs", "text")
+MINUTES_DIR = os.path.join(BASE_DIR, "logs", "minutes")
 
 for d in [VOICE_DIR, TEXT_DIR, MINUTES_DIR]:
     os.makedirs(d, exist_ok=True)
 
+_cached_connection_string = None
 
 def get_connection():
-    """Mở kết nối đến SQL Server."""
-    return pyodbc.connect(CONNECTION_STRING)
+    """Mở kết nối đến SQL Server với khả năng tự động dò tìm server phù hợp."""
+    global _cached_connection_string
+    if _cached_connection_string:
+        return pyodbc.connect(_cached_connection_string)
+
+    SQL_SERVER   = os.getenv("SQL_SERVER")
+    SQL_DATABASE = os.getenv("SQL_DATABASE", "MeetingMinutesDB")
+    DRIVER       = "ODBC Driver 17 for SQL Server"
+
+    # Danh sách các server sẽ thử kết nối
+    servers_to_try = []
+    if SQL_SERVER:
+        servers_to_try.append(SQL_SERVER)
+    
+    # Thử các named instances phổ biến và localhost
+    servers_to_try.extend([
+        r"localhost\ATHU2019",
+        r"localhost\SQLEXPRESS",
+        r"localhost",
+        r"localhost\THU2019",
+        r"localhost\SQLEXPRESS01"
+    ])
+
+    last_error = None
+    for server in servers_to_try:
+        conn_str = f"DRIVER={{{DRIVER}}};SERVER={server};DATABASE={SQL_DATABASE};Trusted_Connection=yes;"
+        try:
+            conn = pyodbc.connect(conn_str, timeout=3)
+            print(f"[DB] Ket noi thanh cong toi SQL Server: {server}")
+            _cached_connection_string = conn_str
+            return conn
+        except Exception as e:
+            last_error = e
+            continue
+
+    if last_error:
+        print(f"[DB] Loi: Khong the ket noi toi bat ky SQL Server instance nao: {servers_to_try}")
+        raise last_error
+
 
 
 # ==============================================================
@@ -56,7 +92,7 @@ def register_speaker(name: str, voice_file_path: str) -> int:
         """, name, voice_file_path)
         speaker_id = cursor.fetchone()[0]
         conn.commit()
-    print(f"[DB] Đã đăng ký giọng nói cho '{name}' | ID: {speaker_id} | Path: {voice_file_path}")
+    print(f"[DB] Da dang ky giong noi cho '{name}' | ID: {speaker_id} | Path: {voice_file_path}")
     return speaker_id
 
 
@@ -66,7 +102,7 @@ def get_all_speakers():
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, voice_path, created_at FROM speakers WHERE is_active = 1")
         rows = cursor.fetchall()
-    return [{"id": r[0], "name": r[1], "voice_path": r[2], "created_at": str(r[3])} for r in rows]
+    return [{"id": r[0], "name": r[1], "voice_path": r[2], "created_at": str(r[3]) if r[3] else None} for r in rows]
 
 
 def get_speaker_voice_paths() -> dict:
@@ -93,7 +129,7 @@ def create_meeting(meeting_code: str) -> int:
         """, meeting_code)
         meeting_id = cursor.fetchone()[0]
         conn.commit()
-    print(f"[DB] Cuộc họp mới: {meeting_code} | ID: {meeting_id}")
+    print(f"[DB] Cuoc hop moi: {meeting_code} | ID: {meeting_id}")
     return meeting_id
 
 
@@ -107,7 +143,7 @@ def end_meeting(meeting_id: int, title: str = None):
             WHERE id = ?
         """, title, meeting_id)
         conn.commit()
-    print(f"[DB] Cuộc họp ID={meeting_id} đã kết thúc.")
+    print(f"[DB] Cuoc hop ID={meeting_id} da ket thuc.")
 
 def update_meeting_paths(meeting_id: int, audio_path: str = None, transcript_path: str = None):
     """Lưu đường dẫn audio/transcript tổng hợp vào bảng meetings."""
@@ -118,7 +154,7 @@ def update_meeting_paths(meeting_id: int, audio_path: str = None, transcript_pat
         if transcript_path:
             cursor.execute("UPDATE meetings SET transcript_path = ? WHERE id = ?", transcript_path, meeting_id)
         conn.commit()
-    print(f"[DB] Đã cập nhật đường dẫn cho cuộc họp ID={meeting_id}")
+    print(f"[DB] Da cap nhat duong dan cho cuoc hop ID={meeting_id}")
 
 
 def get_meeting_by_code(meeting_code: str):
@@ -130,7 +166,7 @@ def get_meeting_by_code(meeting_code: str):
     if row:
         return {
             "id": row[0], "meeting_code": row[1], "title": row[2], 
-            "started_at": str(row[3]), "status": row[4],
+            "started_at": str(row[3]) if row[3] else None, "status": row[4],
             "audio_path": row[5], "transcript_path": row[6]
         }
     return None
@@ -148,7 +184,7 @@ def get_all_meetings():
         rows = cursor.fetchall()
     return [{
         "id": r[0], "meeting_code": r[1], "title": r[2], 
-        "started_at": str(r[3]), "status": r[4], 
+        "started_at": str(r[3]) if r[3] else None, "status": r[4], 
         "has_minutes": bool(r[5]), "minutes_path": r[5],
         "audio_path": r[6], "transcript_path": r[7]
     } for r in rows]
@@ -194,7 +230,7 @@ def save_transcript_line(
         transcript_id = cursor.fetchone()[0]
         conn.commit()
 
-    print(f"[DB] Transcript lưu: {file_path}")
+    print(f"[DB] Transcript luu: {file_path}")
     return transcript_id
 
 
@@ -247,5 +283,53 @@ def save_meeting_minutes(meeting_id: int, minutes_text: str) -> str:
         """, meeting_id, file_path)
         conn.commit()
 
-    print(f"[DB] Biên bản đã lưu: {file_path}")
+    print(f"[DB] Bien ban da luu: {file_path}")
     return file_path
+
+
+def delete_meeting(meeting_id: int):
+    """Xóa cuộc họp khỏi database và xóa các tệp vật lý liên quan trên đĩa."""
+    files_to_delete = []
+    
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Lấy audio_path của cuộc họp
+            cursor.execute("SELECT audio_path FROM meetings WHERE id = ?", meeting_id)
+            row = cursor.fetchone()
+            if row and row[0]:
+                files_to_delete.append(row[0])
+                
+            # Lấy các file transcript text_file_path
+            cursor.execute("SELECT text_file_path FROM transcripts WHERE meeting_id = ?", meeting_id)
+            for r in cursor.fetchall():
+                if r[0]:
+                    files_to_delete.append(r[0])
+                    
+            # Lấy minutes_path
+            cursor.execute("SELECT minutes_path FROM meeting_minutes WHERE meeting_id = ?", meeting_id)
+            for r in cursor.fetchall():
+                if r[0]:
+                    files_to_delete.append(r[0])
+                    
+            # Xóa các bản ghi trong cơ sở dữ liệu
+            cursor.execute("DELETE FROM transcripts WHERE meeting_id = ?", meeting_id)
+            cursor.execute("DELETE FROM meeting_minutes WHERE meeting_id = ?", meeting_id)
+            cursor.execute("DELETE FROM meetings WHERE id = ?", meeting_id)
+            conn.commit()
+            
+        # Xóa các tệp vật lý trên đĩa
+        for fpath in files_to_delete:
+            try:
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+                    print(f"[DB] Da xoa file vat ly: {fpath}")
+            except Exception as file_err:
+                print(f"[DB Error] Khong the xoa file {fpath}: {file_err}")
+                
+        print(f"[DB] Da xoa hoan toan cuoc hop ID={meeting_id}")
+        return True
+    except Exception as e:
+        print(f"[DB Error] Loi khi xoa cuoc hop ID={meeting_id}: {e}")
+        return False

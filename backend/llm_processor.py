@@ -36,6 +36,51 @@ class MeetingLLMProcessor:
         self.gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 
     # ------------------------------------------------------------------
+    def chat(self, user_text: str) -> str:
+        """Sinh câu trả lời ngắn gọn, tự nhiên bằng tiếng Việt cho trợ lý robot AI."""
+        system_prompt = (
+            "Bạn là robot trợ lý AI thông minh trong phòng họp trực tiếp. "
+            "Hãy giao tiếp bằng tiếng Việt một cách cực kỳ ngắn gọn, tự nhiên, và lịch sự (khoảng 1-2 câu). "
+            "Nếu người dùng nói bắt đầu cuộc họp hoặc kết thúc cuộc họp, hãy phản hồi phù hợp."
+        )
+        if self.backend == "groq":
+            try:
+                chat = self.groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_text}
+                    ],
+                    temperature=0.7,
+                    max_tokens=256
+                )
+                return chat.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"[LLM Chat] Groq error: {e}")
+        
+        if self.backend == "gemini":
+            try:
+                import google.generativeai as genai
+                model = genai.GenerativeModel(
+                    "gemini-2.0-flash",
+                    system_instruction=system_prompt
+                )
+                res = model.generate_content(user_text)
+                return res.text.strip()
+            except Exception as e:
+                print(f"[LLM Chat] Gemini error: {e}")
+                
+        # Rule-based fallback
+        user_text_lower = user_text.lower()
+        if "xin chao" in user_text_lower or "chao" in user_text_lower:
+            return "Xin chào! Tôi có thể giúp gì cho cuộc họp hôm nay?"
+        if "bat dau" in user_text_lower:
+            return "Dạ, tôi đã sẵn sàng. Hãy nói 'Bắt đầu cuộc họp' để tôi ghi âm."
+        if "ket thuc" in user_text_lower:
+            return "Dạ, cuộc họp đã kết thúc. Tôi đang lập biên bản."
+        return f"Tôi đã nghe rõ: \"{user_text}\". Hãy ra lệnh cho tôi khi bạn sẵn sàng."
+
+    # ------------------------------------------------------------------
     def generate_minutes(self, dialog_transcript: list) -> str:
         if self.backend == "groq":
             try:

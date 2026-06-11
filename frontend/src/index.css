@@ -124,3 +124,174 @@ h1, h2, h3 {
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* AI Orb animations & Robot assistant UI */
+.ai-orb {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #7c3aed 0%, rgba(12,12,12,0.8) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.2);
+  transition: all 0.5s ease;
+  position: relative;
+}
+
+.ai-orb::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: -10px; right: -10px; bottom: -10px;
+  border-radius: 50%;
+  border: 2px solid rgba(124, 58, 237, 0.2);
+  animation: orb-pulse 2s infinite ease-in-out;
+}
+
+.ai-orb-inner {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.3);
+}
+
+/* Orb state modifiers */
+.ai-orb-recording {
+  background: radial-gradient(circle, #ef4444 0%, rgba(12,12,12,0.8) 70%);
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.ai-orb-recording::before {
+  border-color: rgba(239, 68, 68, 0.4);
+  animation: orb-pulse-red 1.2s infinite ease-in-out;
+}
+
+.ai-orb-loading {
+  background: radial-gradient(circle, #facc15 0%, rgba(12,12,12,0.8) 70%);
+  box-shadow: 0 0 45px rgba(250, 204, 21, 0.5);
+}
+
+.ai-orb-loading::before {
+  border-color: rgba(250, 204, 21, 0.3);
+  animation: orb-spin 1.5s infinite linear;
+  border-top-color: transparent;
+}
+
+/* Animations definition */
+@keyframes orb-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; box-shadow: 0 0 50px rgba(124, 58, 237, 0.6); }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes orb-pulse-red {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.2); opacity: 0.2; box-shadow: 0 0 60px rgba(239, 68, 68, 0.8); }
+  100% { transform: scale(1); opacity: 0.9; }
+}
+
+@keyframes orb-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Subtitle and helper styles */
+.interim-text-container {
+  margin-top: 2rem;
+  background: rgba(0,0,0,0.4);
+  padding: 0.75rem 1.5rem;
+  border-radius: 99px;
+  border: 1px solid var(--glass-border);
+  max-width: 80%;
+  text-align: center;
+}
+
+.interim-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--accent-secondary);
+  font-style: italic;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  animation: modal-slide-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* PRINT & PDF EXPORT STYLING */
+.print-only-container {
+  display: none;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  .screen-only-container,
+  .sidebar,
+  .main-content,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  .print-only-container {
+    display: block !important;
+    padding: 2cm;
+    color: #000000 !important;
+  }
+
+  .pdf-header {
+    text-align: center;
+    margin-bottom: 2cm;
+  }
+
+  .pdf-header h1 {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #000000;
+    margin-bottom: 0.5cm;
+  }
+
+  .pdf-section {
+    margin-bottom: 1.5cm;
+  }
+
+  .pdf-section h2 {
+    font-size: 16pt;
+    border-bottom: 1pt solid #000000;
+    padding-bottom: 0.2cm;
+    margin-bottom: 0.5cm;
+  }
+
+  p {
+    margin-bottom: 0.3cm;
+  }
+}

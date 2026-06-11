@@ -1,1 +1,38 @@
 backend/.env
+# Môi trường ảo Python (Cực kỳ nặng, không được đẩy lên Git)
+venv/
+.venv/
+ENV/
+env/
+
+# Cache của Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Thư viện của Node.js (Frontend)
+**/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Thư mục cấu hình của IDE / Editor (Không cần thiết cho Git)
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln
+
+# Dữ liệu tạm, kết quả và logs (Thường chứa file ghi âm/kết quả chạy thử)
+logs/
+results/
+backend/results/
+uploads/
+backend/uploads/
+*.log
+
+# File cấu hình môi trường chứa mật khẩu/API Key (Bảo mật)
+backend/.env
+.env
+.env.local

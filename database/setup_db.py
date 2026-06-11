@@ -5,10 +5,36 @@ SERVER = "localhost"
 
 print("=== Ket noi SQL Server ===")
 
-# Buoc 1: Tao database
-conn = pyodbc.connect(
-    f"DRIVER={{{DRIVER}}};SERVER={SERVER};DATABASE=master;Trusted_Connection=yes;"
-)
+servers_to_try = [
+    r"localhost\ATHU2019",
+    r"localhost\SQLEXPRESS",
+    r"localhost",
+    r"localhost\THU2019",
+    r"localhost\SQLEXPRESS01"
+]
+
+selected_server = None
+conn = None
+last_error = None
+
+for server in servers_to_try:
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={{{DRIVER}}};SERVER={server};DATABASE=master;Trusted_Connection=yes;",
+            timeout=3
+        )
+        selected_server = server
+        print(f"[OK] Tim thay SQL Server va ket noi thanh cong: {server}")
+        break
+    except Exception as e:
+        last_error = e
+        continue
+
+if not selected_server:
+    print(f"[LOI] Khong the ket noi den bat ky SQL Server nao trong danh sach: {servers_to_try}")
+    if last_error:
+        raise last_error
+
 conn.autocommit = True
 cursor = conn.cursor()
 cursor.execute("""
@@ -25,7 +51,7 @@ conn.close()
 
 # Buoc 2: Tao cac bang
 conn = pyodbc.connect(
-    f"DRIVER={{{DRIVER}}};SERVER={SERVER};DATABASE=MeetingMinutesDB;Trusted_Connection=yes;"
+    f"DRIVER={{{DRIVER}}};SERVER={selected_server};DATABASE=MeetingMinutesDB;Trusted_Connection=yes;"
 )
 conn.autocommit = True
 cursor = conn.cursor()
